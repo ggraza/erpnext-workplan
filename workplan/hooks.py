@@ -15,7 +15,7 @@ app_license = "agpl-3.0"
 # 	{
 # 		"name": "workplan",
 # 		"logo": "/assets/workplan/logo.png",
-# 		"title": "Workplan",
+# 		"title": "workplan",
 # 		"route": "/workplan",
 # 		"has_permission": "workplan.api.permission.has_app_permission"
 # 	}
@@ -43,7 +43,7 @@ app_license = "agpl-3.0"
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+# doctype_js = {"Leave Application" : "public/js/leave_application.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -133,20 +133,18 @@ app_license = "agpl-3.0"
 # Override standard doctype classes
 
 # override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
+# 	"Leave Application": "workplan.workplan.overrides.leave_application.CustomLeaveApplication"
 # }
 
 # Document Events
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Leave Allocation": {
+		"before_insert": "workplan.workplan.overrides.leave_allocation.update"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
@@ -177,9 +175,9 @@ app_license = "agpl-3.0"
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "workplan.event.get_events"
-# }
+override_whitelisted_methods = {
+	"hrms.hr.doctype.leave_application.leave_application.get_number_of_leave_days": "workplan.workplan.overrides.leave_application.get_number_of_leave_days"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
@@ -245,3 +243,4 @@ app_license = "agpl-3.0"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
+fixtures = ["Custom Field", "Client Script"]

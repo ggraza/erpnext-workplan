@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "Employee",
+  "enabled": 1,
+  "modified": "2025-01-09 14:12:41.182329",
+  "module": "Workplan",
+  "name": "Workplan Weekly Sum",
+  "script": "frappe.ui.form.on('Employee', {\n    refresh(frm){\n        sumWeekdays(frm);\n    },\n\tcustom_monday: function(frm) {\n\t    sumWeekdays(frm);\n\t},\n\tcustom_tuesday: function(frm) {\n\t    sumWeekdays(frm);\n\t},\n\tcustom_wednesday: function(frm) {\n\t    sumWeekdays(frm);\n\t},\n\tcustom_thursday: function(frm) {\n\t    sumWeekdays(frm);\n\t},\n\tcustom_friday: function(frm) {\n\t    sumWeekdays(frm);\n\t}\n})\n\n\nfunction sumWeekdays(frm) {\n    const sum = frm.doc.custom_monday + frm.doc.custom_tuesday + frm.doc.custom_wednesday + frm.doc.custom_thursday + frm.doc.custom_friday;\n    frm.set_value(\"custom_weekly_sum\",sum);\n}",
+  "view": "Form"
+ }
+]

@@ -1,6 +1,11 @@
-### Workplan
+### ERPNext Workplan
 
-Adds a workplan for every employee where they can define their planned working hours per work day. This value will then be used for leave calculations.
+This ERPNext App does two things:
+
+- It adds a "workplan" to every Employee (under the "Attendance & Leaves" Tab) where they can define their expected working hours per weekday
+- It adds a checkbox to the Leave Policy Assignment "Use workplan for allocation calculation", which will use the workplan data to calculate the base leave allowance (e.g. if you only work 32 hours per week according to your workplan, the entered amount of leave allowance will be multiplied by 32/40 = 0.8)
+- It uses the workplan data for leave allowance calculations (e.g. your leave allowance will only be reduced by the amount of planned working hours on the given days)
+
 
 ### Installation
 
