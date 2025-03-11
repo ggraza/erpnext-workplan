@@ -10,9 +10,6 @@ from hrms.hr.doctype.leave_application.leave_application import (get_holidays)
 from hrms.utils.holiday_list import (get_holiday_dates_between)
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
-frappe.utils.logger.set_log_level("DEBUG")
-logger = frappe.logger("workplan", allow_site=True, file_count=50)
-
 
 @frappe.whitelist()
 def get_number_of_leave_days(
@@ -26,6 +23,9 @@ def get_number_of_leave_days(
 ) -> float:
 	"""Returns number of leave days between 2 dates after considering half day and holidays
 	(Based on the include_holiday setting in Leave Type)"""
+
+	frappe.utils.logger.set_log_level("DEBUG")
+	logger = frappe.logger("workplan", allow_site=True, file_count=50)
 
 	logger.debug(f"get_number_of_leave_days {employee} {leave_type} {from_date} {to_date}")
 	number_of_weekdays = get_weekdays_diff(from_date, to_date)
@@ -76,4 +76,3 @@ def get_weekdays_diff(from_date: datetime.date, to_date: datetime.date):
 		result[(firstWeekday + x) % 7] += 1
 
 	return result
-
