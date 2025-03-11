@@ -77,6 +77,3 @@ def get_weekdays_diff(from_date: datetime.date, to_date: datetime.date):
 
 	return result
 
-
-# Monkey patching this method into the existing DocType, because the method is not a class method which can be extended/overridden
-hrms.hr.doctype.leave_application.leave_application.get_number_of_leave_days = get_number_of_leave_days
