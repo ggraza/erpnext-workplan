@@ -24,16 +24,13 @@ def get_number_of_leave_days(
 	"""Returns number of leave days between 2 dates after considering half day and holidays
 	(Based on the include_holiday setting in Leave Type)"""
 
-	frappe.utils.logger.set_log_level("DEBUG")
-	logger = frappe.logger("workplan", allow_site=True, file_count=50)
-
-	logger.debug(f"get_number_of_leave_days {employee} {leave_type} {from_date} {to_date}")
+	print(f"get_number_of_leave_days {employee} {leave_type} {from_date} {to_date}")
 	number_of_weekdays = get_weekdays_diff(from_date, to_date)
 
-	logger.debug(f"number_of_weekdays {number_of_weekdays}")
+	print(f"number_of_weekdays {number_of_weekdays}")
 
 	if not frappe.db.get_value("Leave Type", leave_type, "include_holiday"):
-		logger.debug(f"Leave Type {leave_type} not includes holidays as leaves")
+		print(f"Leave Type {leave_type} not includes holidays as leaves")
 		holiday_list_local = get_holiday_list_for_employee(employee)
 		holidays_between_from_to: list[datetime.date] = get_holiday_dates_between(
 			holiday_list_local, from_date.isoformat(), to_date.isoformat())
@@ -41,7 +38,7 @@ def get_number_of_leave_days(
 			number_of_weekdays[holiday.weekday()] = number_of_weekdays[holiday.weekday()] - 1 if \
 				number_of_weekdays[holiday.weekday()] > 0 else 0
 	else:
-		logger.debug(f"Leave Type {leave_type} includes holidays as leaves")
+		print(f"Leave Type {leave_type} includes holidays as leaves")
 
 	employee = frappe.get_doc("Employee", employee)
 	sum_working_hours = 0
@@ -58,7 +55,7 @@ def get_number_of_leave_days(
 			case 4:
 				sum_working_hours += employee.custom_friday * days
 
-	logger.debug(f"Sum_working_hours {sum_working_hours}")
+	print(f"Sum_working_hours {sum_working_hours}")
 	return sum_working_hours / 8
 
 

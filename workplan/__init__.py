@@ -1,4 +1,4 @@
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 
 import hrms.hr.doctype.leave_application.leave_application
 from workplan.workplan.overrides.leave_application import get_number_of_leave_days
