@@ -133,22 +133,28 @@ app_license = "agpl-3.0"
 # Override standard doctype classes
 
 override_doctype_class = {
-	"Leave Application": "workplan.workplan.overrides.leave_application_warning_suppress.CustomLeaveApplication"
+	"Leave Application": "workplan.workplan.overrides.leave_application_validation.CustomLeaveApplication",
+	"Leave Allocation": "workplan.workplan.overrides.supress_leave_allocation_validation.CustomLeaveAllocation",
 }
-
 # Document Events
 # ---------------
 # Hook on document methods and events
 
 doc_events = {
-	"Leave Allocation": {
-		"before_insert": "workplan.workplan.overrides.leave_allocation.update"
-	}
+	"Leave Allocation": {"before_insert": "workplan.workplan.overrides.leave_allocation.update"},
+	"Employee": {
+		"before_save": "workplan.workplan.overrides.leave_allocation_new.update_all_allocations",
+		"validate": "workplan.workplan.overrides.workplan_validation.validate_workplans",
+		"on_update": "workplan.workplan.overrides.leave_application.update_application_days_value",
+	},
 }
 
 # Scheduled Tasks
 # ---------------
 
+scheduler_events = {
+	"cron": {"0 0 1 1 *": ["workplan.workplan.overrides.new_allocations_cronjob.allocate_all_next_year"]}
+}
 # scheduler_events = {
 # 	"all": [
 # 		"workplan.tasks.all"
@@ -243,4 +249,13 @@ override_whitelisted_methods = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
-fixtures = ["Custom Field", "Client Script"]
+fixtures = [
+	{"doctype": "Custom Field", "filters": {"module": ["in", ["workplan"]]}},
+	{"doctype": "Client Script", "filters": {"module": ["in", ["workplan"]]}},
+	# {
+	# 	"doctype": "Workflow State"
+	# },
+	# {
+	# 	"doctype": "Workflow"
+	# }
+]
