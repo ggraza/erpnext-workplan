@@ -20,13 +20,13 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 	leave_types = frappe.get_all("Leave Type")
 	for lt in leave_types:
 		leave_type_doc = frappe.get_doc("Leave Type", lt.name)
-		if leave_type_doc.custom_automatic_allocation and leave_type_doc.name != "Leave Without Pay":
+		if leave_type_doc.custom_automatic_allocation and leave_type_doc.is_lwp != 1:
+			allocation_name = get_allocation_name(
+				employee_doc.name, leave_type_doc.name, last_day_of_year_date
+			)
 			if leave_type_doc.custom_automatic_allocation_calculation_:
 				new_allocation_value = calc_allocation_value(
 					employee_doc, first_day_of_year_date, leave_type_doc.name
-				)
-				allocation_name = get_allocation_name(
-					employee_doc.name, leave_type_doc.name, last_day_of_year_date
 				)
 				if new_allocation_value:
 					update_allocation(
@@ -40,9 +40,6 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 					# no allocation leads to deletion
 					frappe.delete_doc("Leave Allocation", allocation_name)
 			else:
-				allocation_name = get_allocation_name(
-					employee_doc.name, leave_type_doc.name, first_day_of_year_date
-				)
 				if leave_type_doc.is_carry_forward and first_day_of_year_date.year == today.year:
 					carry_forward_days = get_carry_forward_days(
 						employee_doc, leave_type_doc.name, last_day_last_year_date
@@ -166,7 +163,9 @@ def get_policy_value(workplan, leave_type):
 		},
 		fields=["annual_allocation"],
 	)
-	return details[0].annual_allocation
+	if details:
+		return details[0].annual_allocation
+	return 0
 
 
 def resolve_end(end, year):
@@ -207,7 +206,9 @@ def calc_allocation_value(employee_doc, from_date, leave_type):
 		carry_forward_days = get_carry_forward_days(employee_doc, leave_type, last_day_last_year)
 		days_allocated += carry_forward_days
 
-	return days_allocated
+	if days_allocated:
+		return days_allocated
+	return 0
 
 
 def calc_workplan_sum(workplan) -> float:

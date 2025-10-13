@@ -1,33 +1,35 @@
 import frappe
 from frappe.utils import getdate
+from frappe.utils.fixtures import sync_fixtures
 
 from workplan.workplan.overrides.leave_allocation_new import (
-	get_allocation_name,
-	insert_new_allocation,
 	update_allocation_for_year,
 )
 
 
 # 55 ohne workplan oder stunden 0, 60(!) ohne policy fuer vacation
 def execute():
+	sync_fixtures()
 	leave_types = frappe.get_all("Leave Type")
 	for lt in leave_types:
 		leave_type_doc = frappe.get_doc("Leave Type", lt)
-		leave_type_doc.custom_automatic_allocation = 1
 		if lt == "Vacation":
 			leave_type_doc.custom_automatic_allocation_calculation_ = 1
+			leave_type_doc.custom_automatic_allocation = 1
+		elif leave_type_doc.is_compensatory == 1:
+			leave_type_doc.custom_automatic_allocation = 1
 		leave_type_doc.save()
 
 	frappe.local.workplan_patch_running = True
 	print("Migrating Workplans")
 	# for all employees
 	#   insert workplan to custom_workplans
-	next_year = getdate().year + 1
-	first_day_next_year = getdate(f"{next_year}-01-01")
+	current_year = getdate().year
+	first_day_next_year = getdate(f"{current_year + 1}-01-01")
+	first_day_this_year = getdate(f"{current_year}-01-01")
 	leave_types = frappe.get_all("Leave Type")
-	today = getdate()
-	leave_type = "Casual Leave"
-	employees = frappe.get_all("Employee")
+	leave_type = "Vacation"
+	employees = frappe.get_all("Employee", filters={"status": "Active"})
 	for e in employees:
 		employee_doc = frappe.get_doc("Employee", e.name)
 		work_hours = sum(
@@ -47,7 +49,7 @@ def execute():
 				employee_doc.append(
 					"custom_workplans",
 					{
-						"start": today,
+						"start": first_day_this_year,
 						"policy": policy,
 						"monday": employee_doc.custom_monday,
 						"tuesday": employee_doc.custom_tuesday,
@@ -58,12 +60,9 @@ def execute():
 				)
 				employee_doc.save()
 
-		update_allocation_for_year(employee_doc, leave_type, first_day_next_year)
-		for lt in leave_types:
-			if lt.name != leave_type:
-				allocation_name = get_allocation_name(employee_doc.name, lt.name, first_day_next_year)
-				if not allocation_name and lt.name != "Leave Without Pay":
-					insert_new_allocation(employee_doc.name, lt.name, 0, next_year)
+		today = getdate()
+		update_allocation_for_year(employee_doc, first_day_next_year, today)
+
 		frappe.local.workplan_patch_running = False
 
 

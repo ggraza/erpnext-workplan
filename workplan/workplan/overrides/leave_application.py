@@ -3,11 +3,40 @@ import datetime
 import frappe
 import hrms
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
-from frappe.utils import date_diff, getdate
+from frappe.utils import cint, date_diff, flt, getdate
 from hrms.hr.doctype.leave_application.leave_application import get_holidays
 from hrms.utils.holiday_list import get_holiday_dates_between
 
 from workplan.workplan.overrides.leave_allocation_new import get_current_workplan, get_next_workplan
+
+
+def get_number_of_leave_working_days(
+	employee: str,
+	leave_type: str,
+	from_date: datetime.date,
+	to_date: datetime.date,
+) -> float:
+	"""Returns number of leave days between 2 dates after considering holidays
+	(Based on the include_holiday setting in Leave Type). Does not consider wether the employee actually works on the days as per their workplan"""
+
+	print(f"get_number_of_leave_days {employee} {leave_type} {from_date} {to_date}")
+	number_of_weekdays = get_weekdays_diff(from_date, to_date)
+
+	print(f"number_of_weekdays {number_of_weekdays} {from_date} { to_date}")
+
+	if not frappe.db.get_value("Leave Type", leave_type, "include_holiday"):
+		print(f"Leave Type {leave_type} not includes holidays as leaves")
+		holiday_list_local = get_holiday_list_for_employee(employee)
+		holidays_between_from_to: list[datetime.date] = get_holiday_dates_between(
+			holiday_list_local, from_date.isoformat(), to_date.isoformat()
+		)
+		for holiday in holidays_between_from_to:
+			number_of_weekdays[holiday.weekday()] = (
+				number_of_weekdays[holiday.weekday()] - 1 if number_of_weekdays[holiday.weekday()] > 0 else 0
+			)
+	else:
+		print(f"Leave Type {leave_type} includes holidays as leaves")
+	return number_of_weekdays
 
 
 def get_number_of_leave_days_for_workplan(
@@ -85,7 +114,10 @@ def get_number_of_leave_day_for_employee_doc(
 	result = 0
 	start = from_date
 	if not workplan:
-		frappe.throw("Workplan for already applied Vacation missing")
+		# check if there are actually vacations applied for
+		frappe.throw(
+			"Workplan for already applied Vacation missing. Cancel the Applications in the Workplan before deleting the Workplan itself."
+		)
 	if workplan.end:
 		while workplan.end and getdate(workplan.end) < to_date:
 			result += get_number_of_leave_days_for_workplan(
@@ -93,7 +125,10 @@ def get_number_of_leave_day_for_employee_doc(
 			)
 			workplan = get_next_workplan(employee_doc, workplan.end)
 			if not workplan:
-				frappe.throw("Workplan for already applied Vacation missing")
+				# check if there are actually vacations applied for
+				frappe.throw(
+					"Workplan for already applied Vacation missing. Cancel the Applications in the Workplan before deleting the Workplan itself."
+				)
 			start = workplan.start
 
 		result += get_number_of_leave_days_for_workplan(
@@ -130,6 +165,8 @@ def update_application_days_value(employee_doc, method):
 			"employee": employee_doc.name,
 			"from_date": (">=", first_day_this_year),
 			"to_date": ("<=", last_day_next_year),
+			"docstatus": ("!=", 2),
+			"approval_state": ("!=", "Canceled"),
 		},
 		fields=["name", "from_date", "to_date", "leave_type", "total_leave_days"],
 	)
