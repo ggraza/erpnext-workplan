@@ -48,7 +48,7 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 			else:
 				if leave_type_doc.is_carry_forward and first_day_of_year_date.year == today.year:
 					carry_forward_days = get_carry_forward_days(
-						employee_doc, leave_type_doc.name, last_day_last_year_date
+						employee_doc, leave_type_doc.name, last_day_last_year_date, first_day_of_year_date
 					)
 					update_allocation(
 						allocation_name,
@@ -69,14 +69,32 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 					)
 
 
-def get_carry_forward_days(employee_doc, leave_type, carry_forward_from_date):
+def get_carry_forward_days(employee_doc, leave_type, carry_forward_from_date, carry_forward_start_date):
+	carry_forward = frappe.get_all(
+		"Leave Ledger Entry",
+		["leaves"],
+		filters={
+			"employee": employee_doc.name,
+			"leave_type": leave_type,
+			"from_date": carry_forward_start_date,
+		},
+	)
+	if carry_forward:
+		return carry_forward[0].leaves
+	unused_leaves = 0.0
 	from_allocation_name = get_allocation_name(employee_doc.name, leave_type, carry_forward_from_date)
 	if from_allocation_name:
 		from_allocation_doc = frappe.get_doc("Leave Allocation", from_allocation_name)
-		return get_unused_leaves(
+		unused_leaves = get_unused_leaves(
 			employee_doc.name, leave_type, from_allocation_doc.from_date, from_allocation_doc.to_date
 		)
-	return 0
+		if unused_leaves:
+			max_carry_forwarded_leaves = frappe.db.get_value(
+				"Leave Type", leave_type, "maximum_carry_forwarded_leaves"
+			)
+			if max_carry_forwarded_leaves and unused_leaves > flt(max_carry_forwarded_leaves):
+				unused_leaves = flt(max_carry_forwarded_leaves)
+	return unused_leaves
 
 
 def insert_new_allocation(employee_name, leave_type, allocation_value, year):
@@ -222,7 +240,10 @@ def calc_allocation_value(employee_doc, from_date, leave_type):
 		and not (allocation_doc and allocation_doc.carry_forward == 1)
 	):
 		last_day_last_year = getdate(f"{from_date.year-1}-12-31")
-		carry_forward_days = get_carry_forward_days(employee_doc, leave_type, last_day_last_year)
+		first_day_this_year = getdate(f"{from_date.year}-01-01")
+		carry_forward_days = get_carry_forward_days(
+			employee_doc, leave_type, last_day_last_year, first_day_this_year
+		)
 		days_allocated += carry_forward_days
 
 	if days_allocated:
@@ -244,60 +265,71 @@ def get_allocation_doc(employee_name, leave_type, date):
 	return allocation_doc
 
 
-def on_update_after_submit(leave_allocation: LeaveAllocation):
+def on_update_after_submit(leave_allocation: LeaveAllocation, method):
 	custom_update_leave_ledger_entries(leave_allocation, True)
 
 
 def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit=True):
-	if leave_allocation.has_value_changed("total_leaves_allocated"):
+	if leave_allocation.has_value_changed("new_leaves_allocated"):
 		leave_allocation.validate_earned_leave_update()
 		leave_allocation.validate_against_leave_applications()
 
-		if leave_allocation.custom_carried_forward:
-			entries = frappe.get_all(
-				"Leave Ledger Entry",
-				fields=["leaves"],
-				filters={
-					"transaction_type": "Leave Allocation",
-					"leave_type": "Vacation",
-					"is_carry_forwarded": 1,
-					"employee": leave_allocation.employee,
-				},
-			)
-			existing_carried_forward = sum(entry.leaves for entry in entries)
+		# recalculate total leaves allocated
+		leave_allocation.total_leaves_allocated = flt(leave_allocation.unused_leaves) + flt(
+			leave_allocation.new_leaves_allocated
+		)
 
-			leaves_to_be_added = flt(
-				(leave_allocation.new_leaves_allocated - leave_allocation.get_existing_leave_count()),
-				leave_allocation.precision("new_leaves_allocated"),
+		leaves_to_be_added = flt(
+			(leave_allocation.new_leaves_allocated - leave_allocation.get_existing_leave_count()),
+			leave_allocation.precision("new_leaves_allocated"),
+		)
+
+		if (
+			leave_allocation.has_value_changed("custom_carried_forward")
+			and leave_allocation.custom_carried_forward
+		):
+			leaves_to_be_added = leaves_to_be_added - leave_allocation.custom_carried_forward
+			# entries = frappe.get_all(
+			# 	"Leave Ledger Entry",
+			# 	fields=["leaves"],
+			# 	filters={
+			# 		"transaction_type": "Leave Allocation",
+			# 		"leave_type": "Vacation",
+			# 		"is_carry_forward": 1,
+			# 		"employee": leave_allocation.employee,
+			# 	},
+			# )
+			# existing_carried_forward = sum(entry.leaves for entry in entries)
+
+			# if existing_carried_forward != leave_allocation.custom_carried_forward:
+			expiry_days = frappe.db.get_value(
+				"Leave Type", leave_allocation.leave_type, "expire_carry_forwarded_leaves_after_days"
 			)
-			if existing_carried_forward != leave_allocation.custom_carried_forward:
-				expiry_days = frappe.db.get_value(
-					"Leave Type", leave_allocation.leave_type, "expire_carry_forwarded_leaves_after_days"
+			end_date = (
+				add_days(leave_allocation.from_date, expiry_days - 1)
+				if expiry_days
+				else leave_allocation.to_date
+			)
+			# carry_forward_to_be_added = flt(
+			# 	(leave_allocation.custom_carried_forward - existing_carried_forward),
+			# 	leave_allocation.precision("new_leaves_allocated"),
+			# )
+			if leave_allocation.custom_carried_forward > 0:
+				args = dict(
+					leaves=leave_allocation.custom_carried_forward,
+					from_date=leave_allocation.from_date,
+					to_date=min(getdate(end_date), getdate(leave_allocation.to_date)),
+					is_carry_forward=1,
 				)
-				end_date = (
-					add_days(leave_allocation.from_date, expiry_days - 1)
-					if expiry_days
-					else leave_allocation.to_date
-				)
-				carry_forward_to_be_added = flt(
-					(leave_allocation.custom_carried_forward - existing_carried_forward),
-					leave_allocation.precision("new_leaves_allocated"),
-				)
-				if carry_forward_to_be_added > 0:
-					args = dict(
-						leaves=carry_forward_to_be_added,
-						from_date=leave_allocation.from_date,
-						to_date=min(getdate(end_date), getdate(leave_allocation.to_date)),
-						is_carry_forward=1,
-					)
-					create_leave_ledger_entry(leave_allocation, args, submit)
-					leaves_to_be_added = leaves_to_be_added - carry_forward_to_be_added
-				else:
-					leaves_to_be_added = leaves_to_be_added + carry_forward_to_be_added
+				create_leave_ledger_entry(leave_allocation, args, submit)
+				# else:
+				# 	# substract from allocation becaus carry_forward was too big
+				# 	leaves_to_be_added = leaves_to_be_added + carry_forward_to_be_added
 		args = dict(
-			leaves=leave_allocation.new_leaves_allocated,
+			leaves=leaves_to_be_added,
 			from_date=leave_allocation.from_date,
 			to_date=leave_allocation.to_date,
 			is_carry_forward=0,
 		)
 		create_leave_ledger_entry(leave_allocation, args, submit)
+		leave_allocation.db_update()
