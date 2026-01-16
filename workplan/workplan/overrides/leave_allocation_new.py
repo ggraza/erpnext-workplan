@@ -77,6 +77,7 @@ def get_carry_forward_days(employee_doc, leave_type, carry_forward_from_date, ca
 			"employee": employee_doc.name,
 			"leave_type": leave_type,
 			"from_date": carry_forward_start_date,
+			"is_carry_forward": 1,
 		},
 	)
 	if carry_forward:

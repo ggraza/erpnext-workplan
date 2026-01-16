@@ -192,7 +192,10 @@ def update_application_days_value(employee_doc, method):
 			fields=["SUM(leaves) as total_leaves"],
 		)
 
-		existing_leave_count = ledger_entries[0].total_leaves if ledger_entries else 0
+		if ledger_entries and ledger_entries[0].total_leaves is not None:
+			existing_leave_count = ledger_entries[0].total_leaves
+		else:
+			existing_leave_count = 0
 
 		frappe.db.set_value("Leave Application", application.name, "total_leave_days", new_total_leave_days)
 		leaves_to_be_added = flt(

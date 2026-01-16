@@ -9,5 +9,4 @@ class CustomLeaveAllocation(LeaveAllocation):
 		return
 
 	def on_update_after_submit(self):
-		print("onupdate korrekt?!")
 		return
