@@ -103,7 +103,7 @@ def update_allocation(
 	if allocation_name:
 		allocation_doc = frappe.get_doc("Leave Allocation", allocation_name)
 		allocation_doc.new_leaves_allocated = new_allocated_value
-		allocation_doc.custom_carried_foward = carry_forward_days
+		allocation_doc.custom_carried_forward = carry_forward_days
 		allocation_doc.save()
 	else:
 		insert_new_allocation(employee_name, leave_type, new_allocated_value, year)
@@ -253,7 +253,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 		leave_allocation.validate_earned_leave_update()
 		leave_allocation.validate_against_leave_applications()
 
-		if leave_allocation.custom_carried_foward:
+		if leave_allocation.custom_carried_forward:
 			entries = frappe.get_all(
 				"Leave Ledger Entry",
 				fields=["leaves"],
