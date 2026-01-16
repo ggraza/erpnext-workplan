@@ -89,7 +89,7 @@ def validate_used_days_for_year(doc, year, leave_type):
 			doc, leave_type, application.from_date, application.to_date
 		)
 
-	new_allocation = calc_allocation_value(doc, from_date, leave_type)
+	new_allocation, carry_forward = calc_allocation_value(doc, from_date, leave_type)
 
 	allocation_doc = get_allocation_doc(doc.name, leave_type, to_date)
 
