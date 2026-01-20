@@ -299,7 +299,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 			)
 			existing_carried_forward = sum(entry.leaves for entry in entries)
 			if not existing_carried_forward:
-				leaves_to_be_added = leaves_to_be_added - leave_allocation.custom_carried_forward
+				leaves_to_be_added = leaves_to_be_added - flt(leave_allocation.custom_carried_forward)
 				expiry_days = frappe.db.get_value(
 					"Leave Type", leave_allocation.leave_type, "expire_carry_forwarded_leaves_after_days"
 				)
@@ -309,7 +309,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 					else leave_allocation.to_date
 				)
 				args = dict(
-					leaves=leave_allocation.custom_carried_forward,
+					leaves=flt(leave_allocation.custom_carried_forward),
 					from_date=leave_allocation.from_date,
 					to_date=min(getdate(end_date), getdate(leave_allocation.to_date)),
 					is_carry_forward=1,
