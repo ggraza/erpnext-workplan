@@ -198,8 +198,11 @@ def update_application_days_value(employee_doc, method):
 			existing_leave_count = 0
 
 		frappe.db.set_value("Leave Application", application.name, "total_leave_days", new_total_leave_days)
-		leaves_to_be_added = flt(
-			(existing_leave_count - new_total_leave_days),
+		leaves_to_be_added = (
+			flt(
+				(new_total_leave_days + existing_leave_count),
+			)
+			* -1
 		)
 
 		if leaves_to_be_added:

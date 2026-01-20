@@ -17,7 +17,6 @@ def execute():
 			processed_leave_applications.add(entry_doc.transaction_name)
 			application_doc = frappe.get_doc("Leave Application", entry_doc.transaction_name)
 			old_total_leave_days = 0
-			# vielleicht brauche ich hier die docs
 			old_total_leave_days = -1 * sum(
 				entry.leaves
 				for entry in leave_ledger_entries
