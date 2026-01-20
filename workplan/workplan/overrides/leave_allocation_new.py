@@ -286,10 +286,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 			leave_allocation.precision("new_leaves_allocated"),
 		)
 
-		if (
-			leave_allocation.has_value_changed("custom_carried_forward")
-			and leave_allocation.custom_carried_forward
-		):
+		if leave_allocation.custom_carried_forward:
 			entries = frappe.get_all(
 				"Leave Ledger Entry",
 				fields=["leaves"],
