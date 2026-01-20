@@ -291,7 +291,8 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 			fields=["leaves"],
 			filters={
 				"transaction_type": "Leave Allocation",
-				"leave_type": "Vacation",
+				"leave_type": leave_allocation.leave_type,
+				"transaction_name": leave_allocation.name,
 				"is_carry_forward": 1,
 				"employee": leave_allocation.employee,
 			},
