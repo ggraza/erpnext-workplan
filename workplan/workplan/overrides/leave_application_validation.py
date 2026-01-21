@@ -1,3 +1,5 @@
+import datetime
+
 import frappe
 from frappe import _
 from frappe.utils import add_days, getdate
@@ -5,11 +7,13 @@ from hrms.hr.doctype.leave_application.leave_application import (
 	InsufficientLeaveBalanceError,
 	LeaveApplication,
 	get_leave_allocation_records,
+	get_leave_entries,
 	set_employee_name,
 	validate_active_employee,
 )
 
 from workplan.workplan.overrides.leave_allocation_new import get_current_workplan
+from workplan.workplan.overrides.leave_application import get_number_of_leave_days
 
 
 class CustomLeaveApplication(LeaveApplication):

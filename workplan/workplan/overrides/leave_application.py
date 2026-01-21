@@ -4,7 +4,11 @@ import frappe
 import hrms
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 from frappe.utils import cint, date_diff, flt, getdate
-from hrms.hr.doctype.leave_application.leave_application import get_holidays
+from hrms.hr.doctype.leave_application.leave_application import (
+	get_allocation_expiry_for_cf_leaves,
+	get_leave_entries,
+)
+from hrms.hr.doctype.leave_ledger_entry.leave_ledger_entry import create_leave_ledger_entry
 from hrms.utils.holiday_list import get_holiday_dates_between
 
 from workplan.workplan.overrides.leave_allocation_new import get_current_workplan, get_next_workplan
@@ -168,10 +172,134 @@ def update_application_days_value(employee_doc, method):
 			"docstatus": ("!=", 2),
 			"approval_state": ("!=", "Canceled"),
 		},
-		fields=["name", "from_date", "to_date", "leave_type", "total_leave_days"],
+		fields=["name", "from_date", "to_date", "leave_type", "total_leave_days", "company"],
 	)
 	for application in applications:
 		new_total_leave_days = get_number_of_leave_days(
 			employee_doc.name, application.leave_type, application.from_date, application.to_date
 		)
+
+		ledger_entries = frappe.get_all(
+			"Leave Ledger Entry",
+			filters={
+				"transaction_type": "Leave Application",
+				"transaction_name": application.name,
+				"employee": employee_doc.name,
+				"company": application.company,
+				"leave_type": application.leave_type,
+				"docstatus": 1,
+			},
+			fields=["SUM(leaves) as total_leaves"],
+		)
+
+		if ledger_entries and ledger_entries[0].total_leaves is not None:
+			existing_leave_count = ledger_entries[0].total_leaves
+		else:
+			existing_leave_count = 0
+
 		frappe.db.set_value("Leave Application", application.name, "total_leave_days", new_total_leave_days)
+		leaves_to_be_added = (
+			flt(
+				(new_total_leave_days + existing_leave_count),
+			)
+			* -1
+		)
+
+		if leaves_to_be_added:
+			application_doc = frappe.get_doc("Leave Application", application.name)
+
+			if application_doc.status != "Approved":
+				return
+
+			expiry_date = get_allocation_expiry_for_cf_leaves(
+				application_doc.employee,
+				application_doc.leave_type,
+				application_doc.to_date,
+				application_doc.from_date,
+			)
+			lwp = frappe.db.get_value("Leave Type", application_doc.leave_type, "is_lwp")
+
+			if expiry_date:
+				application_doc.create_ledger_entry_for_intermediate_allocation_expiry(expiry_date, True, lwp)
+			else:
+				(
+					alloc_on_from_date,
+					alloc_on_to_date,
+				) = application_doc.get_allocation_based_on_application_dates()
+				if application_doc.is_separate_ledger_entry_required(alloc_on_from_date, alloc_on_to_date):
+					application_doc.create_separate_ledger_entries(
+						alloc_on_from_date, alloc_on_to_date, True, lwp
+					)
+				else:
+					raise_exception = False if frappe.flags.in_patch else True
+					args = dict(
+						leaves=leaves_to_be_added,
+						from_date=application_doc.from_date,
+						to_date=application_doc.to_date,
+						is_lwp=lwp,
+						holiday_list=get_holiday_list_for_employee(
+							application_doc.employee, raise_exception=raise_exception
+						)
+						or "",
+					)
+					create_leave_ledger_entry(application_doc, args, True)
+
+
+def get_leaves_for_period(
+	employee: str,
+	leave_type: str,
+	from_date: datetime.date,
+	to_date: datetime.date,
+	skip_expired_leaves: bool = True,
+) -> float:
+	leave_entries = get_leave_entries(employee, leave_type, from_date, to_date)
+	leave_days = 0
+	processed_leave_applications = set()
+	for leave_entry in leave_entries:
+		inclusive_period = leave_entry.from_date >= getdate(from_date) and leave_entry.to_date <= getdate(
+			to_date
+		)
+
+		if inclusive_period and leave_entry.transaction_type == "Leave Encashment":
+			leave_days += leave_entry.leaves
+
+		elif (
+			inclusive_period
+			and leave_entry.transaction_type == "Leave Allocation"
+			and leave_entry.is_expired
+			and not skip_expired_leaves
+		):
+			leave_days += leave_entry.leaves
+
+		elif leave_entry.transaction_type == "Leave Application":
+			if leave_entry.transaction_name in processed_leave_applications:
+				continue
+			processed_leave_applications.add(leave_entry.transaction_name)
+			if leave_entry.from_date < getdate(from_date):
+				leave_entry.from_date = from_date
+			if leave_entry.to_date > getdate(to_date):
+				leave_entry.to_date = to_date
+
+			half_day = 0
+			half_day_date = None
+			# fetch half day date for leaves with half days
+			if leave_entry.leaves % 1:
+				half_day = 1
+				half_day_date = frappe.db.get_value(
+					"Leave Application", leave_entry.transaction_name, "half_day_date"
+				)
+
+			leave_days += (
+				get_number_of_leave_days(
+					employee,
+					leave_type,
+					leave_entry.from_date,
+					leave_entry.to_date,
+					half_day,
+					half_day_date,
+					holiday_list=leave_entry.holiday_list,
+				)
+				* -1
+			)
+
+	return leave_days

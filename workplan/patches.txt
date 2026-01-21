@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 workplan.workplan.patches.set_workplans
 workplan.workplan.patches.fix_carry_forward
+workplan.workplan.patches.fix_leave_ledger_values

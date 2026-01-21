@@ -146,6 +146,9 @@ doc_events = {
 		"validate": "workplan.workplan.overrides.workplan_validation.validate_workplans",
 		"on_update": "workplan.workplan.overrides.leave_application.update_application_days_value",
 	},
+	"Leave Allocation": {
+		"on_update_after_submit": "workplan.workplan.overrides.leave_allocation_new.on_update_after_submit",
+	},
 }
 
 # Scheduled Tasks
