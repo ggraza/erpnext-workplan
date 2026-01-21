@@ -48,7 +48,10 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 			else:
 				if leave_type_doc.is_carry_forward and first_day_of_year_date.year == today.year:
 					carry_forward_days = get_carry_forward_days(
-						employee_doc, leave_type_doc.name, last_day_last_year_date, first_day_of_year_date
+						employee_doc,
+						leave_type_doc.name,
+						last_day_last_year_date,
+						first_day_of_year_date.year,
 					)
 					update_allocation(
 						allocation_name,
@@ -69,21 +72,24 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 					)
 
 
-def get_carry_forward_days(employee_doc, leave_type, carry_forward_from_date, carry_forward_start_date):
+def get_carry_forward_days(employee_doc, leave_type, from_year_date, to_year):
+	to_year_first_day = getdate(f"{to_year}-01-01")
+	to_year_last_day = getdate(f"{to_year}-12-31")
 	carry_forward = frappe.get_all(
 		"Leave Ledger Entry",
 		["leaves"],
 		filters={
 			"employee": employee_doc.name,
 			"leave_type": leave_type,
-			"from_date": carry_forward_start_date,
+			"from_date": ("<=", to_year_last_day),
+			"to_date": (">=", to_year_first_day),
 			"is_carry_forward": 1,
 		},
 	)
 	if carry_forward:
 		return carry_forward[0].leaves
 	unused_leaves = 0.0
-	from_allocation_name = get_allocation_name(employee_doc.name, leave_type, carry_forward_from_date)
+	from_allocation_name = get_allocation_name(employee_doc.name, leave_type, from_year_date)
 	if from_allocation_name:
 		from_allocation_doc = frappe.get_doc("Leave Allocation", from_allocation_name)
 		unused_leaves = get_unused_leaves(
