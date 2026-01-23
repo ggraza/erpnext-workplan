@@ -12,7 +12,7 @@ frappe.ui.form.on("Leave Application", {
 					half_day_date: frm.doc.half_day_date,
 				},
 				callback: function (r) {
-					if (r && r.message) {
+					if (r && r.message && r.message.total_leave_days) {
 						frm.set_value("total_leave_days", r.message.total_leave_days);
 						frm.set_value("custom_fractional_day_value", r.message.fractional_value);
 						if (r.message.fractional_value) {
