@@ -96,7 +96,7 @@ def validate_used_days_for_year(doc, year, leave_type):
 	if allocation_doc and allocation_doc.carry_forward == 1:
 		new_allocation += allocation_doc.unused_leaves
 
-	if flt(leaves_taken) > flt(new_allocation):
+	if flt(leaves_taken, 3) > flt(new_allocation, 3):
 		frappe.throw(
 			frappe._(
 				"Total allocated leave days for workplans {0} cannot be less than already approved leaves {1} for the period"

@@ -14,7 +14,10 @@ from hrms.hr.doctype.leave_application.leave_application import (
 )
 
 from workplan.workplan.overrides.leave_allocation_new import get_current_workplan
-from workplan.workplan.overrides.leave_application import get_number_of_leave_days_leave_application
+from workplan.workplan.overrides.leave_application import (
+	get_number_of_leave_days,
+	get_number_of_leave_days_leave_application,
+)
 
 
 class CustomLeaveApplication(LeaveApplication):
@@ -53,14 +56,14 @@ class CustomLeaveApplication(LeaveApplication):
 		precision = cint(frappe.db.get_single_value("System Settings", "float_precision")) or 2
 
 		if self.from_date and self.to_date:
-			self.total_leave_days = get_number_of_leave_days_leave_application(
+			self.total_leave_days = get_number_of_leave_days(
 				self.employee,
 				self.leave_type,
 				self.from_date,
 				self.to_date,
 				self.half_day,
 				self.half_day_date,
-			).get("total_leave_days")
+			)
 
 			if self.total_leave_days <= 0:
 				frappe.throw(

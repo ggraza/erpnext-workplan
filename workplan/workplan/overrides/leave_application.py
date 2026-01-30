@@ -1,4 +1,5 @@
 import datetime
+import math
 
 import frappe
 import hrms
@@ -88,14 +89,21 @@ def get_number_of_leave_days_for_workplan(
 			case 4:
 				sum_working_hours += workplan.friday * days
 
-	# TODO fragwuerdig um zu entscheiden ob es eine application mit fractional
-	leave_application = frappe.get_all(
-		"Leave Application", filters={"to_date": to_date, "employee": employee.name}
+	existing_leave_application = frappe.get_all(
+		"Leave Application",
+		filters={
+			"from_date": from_date,
+			"to_date": to_date,
+			"employee": employee.name,
+			"status": ["in", ["Draft", "Open", "Pending", "Approved"]],
+		},
 	)
 
-	if leave_application:
-		leave_application_doc = frappe.get_doc("Leave Application", leave_application[0])
+	if existing_leave_application:
+		leave_application_doc = frappe.get_doc("Leave Application", existing_leave_application[0])
 		work_hours, date = get_last_workday_with_hours(employee, from_date, to_date)
+
+		# fractional leave >= work_hours that day
 		if (flt(leave_application_doc.custom_fractional_day_value) * 8) >= work_hours:
 			leave_application_doc.custom_fractional_day_value = 0
 			leave_application_doc.save()
@@ -111,7 +119,7 @@ def get_number_of_leave_days_for_workplan(
 
 
 @frappe.whitelist()
-def get_is_fractional_application(
+def get_fractional_leave_details(
 	employee: str, leave_type: str, from_date: datetime.date, to_date: datetime.date
 ):
 	employee_doc = frappe.get_doc("Employee", employee)
@@ -128,40 +136,34 @@ def get_is_fractional_application(
 	)
 	leave_balance_for_consumption = flt(leave_balance.get("leave_balance_for_consumption"), 3)
 
-	workplan = get_current_workplan(employee_doc, from_date)
-	work_hours, date = get_last_workday_with_hours(employee, from_date, to_date, workplan)
+	work_hours, last_workday_date = get_last_workday_with_hours(employee, from_date, to_date)
 
-	if work_hours == 0:
-		return 0, 0, date, 0
-
-	if (-1 * work_hours) / 8 > (leave_balance_for_consumption - leave_days_requested):
-		return 0, 0, date, 0
-
-	if (leave_balance_for_consumption - leave_days_requested) >= 0:
-		return 0, 0, date, 0
+	remaining_leave = leave_balance_for_consumption - leave_days_requested
+	if work_hours == 0 or remaining_leave >= 0 or (-work_hours) / 8 > remaining_leave:
+		return 0, 0, last_workday_date, 0
 
 	print(f"Leave Balance Requested {leave_days_requested}")
 	print(f"Leave Balance available {leave_balance_for_consumption}")
 	fractional_vacation = work_hours / 8 + leave_balance_for_consumption - leave_days_requested
 	fractional_work = work_hours / 8 - fractional_vacation
-	return leave_balance_for_consumption, fractional_work, date, fractional_vacation
+	return leave_balance_for_consumption, fractional_work, last_workday_date, fractional_vacation
 
 
-def get_last_workday_with_hours(employee, from_date, to_date, workplan=None):
+def get_last_workday_with_hours(employee, from_date, to_date):
 	date_to_check = to_date
 	holiday_list_local = get_holiday_list_for_employee(employee)
-	holidays_between_from_to: list[datetime.date] = get_holiday_dates_between(
+	holidays_dates: list[datetime.date] = get_holiday_dates_between(
 		holiday_list_local, from_date.isoformat(), to_date.isoformat()
 	)
-	holidays_set = set(holidays_between_from_to)
+	holidays_dates_set = set(holidays_dates)
 
-	if not workplan:
-		employee_doc = frappe.get_doc("Employee", employee)
-		workplan = get_current_workplan(employee_doc, to_date)
+	employee_doc = frappe.get_doc("Employee", employee)
+
+	workplan = get_current_workplan(employee_doc, to_date)
 
 	while date_to_check >= from_date:
 		is_weekday = date_to_check.weekday() < 5
-		is_holiday = date_to_check in holidays_set
+		is_holiday = date_to_check in holidays_dates_set
 
 		if is_weekday and not is_holiday:
 			work_hours = get_work_hours(None, date_to_check, workplan)
@@ -170,7 +172,6 @@ def get_last_workday_with_hours(employee, from_date, to_date, workplan=None):
 
 		if workplan and workplan.end:
 			if date_to_check < getdate(workplan.start):
-				employee_doc = frappe.get_doc("Employee", employee)
 				workplan = get_current_workplan(employee_doc, date_to_check)
 
 		date_to_check = add_days(date_to_check, -1)
@@ -179,7 +180,6 @@ def get_last_workday_with_hours(employee, from_date, to_date, workplan=None):
 
 
 def get_work_hours(employee_doc, date: datetime.date, workplan=None):
-	"""Get work hours for a specific date. If workplan provided, use it instead of loading."""
 	if not workplan:
 		workplan = get_current_workplan(employee_doc, date)
 
@@ -215,8 +215,6 @@ def get_number_of_leave_days(
 	"""Returns number of leave days between 2 dates after considering half day and holidays
 	(Based on the include_holiday setting in Leave Type)"""
 
-	## gucken ob is_fractional in db, wenn is fractional fuer den tag entsprechend wert einfach aus db nehmen
-	# print(get_is_fractional_application(employee, leave_type, from_date, to_date))
 	employee_doc = frappe.get_doc("Employee", employee)
 	return get_number_of_leave_day_for_employee_doc(employee_doc, leave_type, from_date, to_date)
 
@@ -234,16 +232,10 @@ def get_number_of_leave_days_leave_application(
 	"""Returns number of leave days between 2 dates after considering half day and holidays
 	(Based on the include_holiday setting in Leave Type)"""
 
-	## gucken ob is_fractional in db, wenn is fractional fuer den tag entsprechend wert einfach aus db nehmen
-	total_fractional_vacation, fractional_work, date, fractional_vacation = get_is_fractional_application(
+	total_fractional_vacation, fractional_work, date, fractional_vacation = get_fractional_leave_details(
 		employee, leave_type, from_date, to_date
 	)
-	# employee_doc = frappe.get_doc("Employee", employee)
-	# # leave_without_fractional = get_number_of_leave_day_for_employee_doc(
-	# # 	employee_doc, leave_type, from_date, to_date
-	# )
-	# leave_with_fractional = leave_without_fractional - 1 + fractional_vacation
-	# falsch: einfach ganzer resturlaub
+
 	return {
 		"fractional_value": fractional_vacation,
 		"fractional_work": fractional_work,
@@ -309,7 +301,7 @@ def get_weekdays_diff(from_date: datetime.date, to_date: datetime.date):
 
 
 def update_application_days_value(employee_doc, method):
-	# fuer jede application des employee die days neu berechnen
+	# recalculate leave days for every application
 	current_year = getdate().year
 	first_day_this_year = getdate(f"{current_year}-01-01")
 	last_day_next_year = getdate(f"{current_year + 1}-12-31")
@@ -339,10 +331,25 @@ def update_application_days_value(employee_doc, method):
 		work_hours, date = get_last_workday_with_hours(
 			employee_doc.name, application.from_date, application.to_date
 		)
-		if work_hours / 8 <= flt(application.custom_fractional_day_value):
-			application_doc = frappe.get_doc("Leave Application", application.name)
+
+		application_doc = frappe.get_doc("Leave Application", application.name)
+
+		if (
+			work_hours / 8 <= flt(application.custom_fractional_day_value)
+			or date != application_doc.custom_last_workday_date
+		):
 			application_doc.custom_fractional_day_value = 0
-			application_doc.save()
+			application_doc.custom_last_workday_date = None
+			application_doc.custom_last_workday_weekday = None
+			application_doc.custom_hours_to_work = None
+			application_doc.custom_minutes_to_work = None
+		elif flt(application.custom_fractional_day_value) > 0:
+			total_hours = work_hours - flt(application.custom_fractional_day_value) * 8
+			hours = math.floor(total_hours)
+			application_doc.custom_minutes_to_work = math.floor((total_hours - hours) * 60)
+			application_doc.custom_hours_to_work = math.floor(total_hours)
+
+		application_doc.save()
 
 		new_total_leave_days = get_number_of_leave_days(
 			employee_doc.name, application.leave_type, application.from_date, application.to_date
