@@ -166,7 +166,7 @@ def get_last_workday_with_hours(employee, from_date, to_date):
 		is_holiday = date_to_check in holidays_dates_set
 
 		if is_weekday and not is_holiday:
-			work_hours = get_work_hours(None, date_to_check, workplan)
+			work_hours = get_work_hours(employee_doc, date_to_check, workplan)
 			if work_hours > 0:
 				return work_hours, date_to_check
 

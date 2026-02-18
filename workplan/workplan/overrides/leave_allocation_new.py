@@ -44,6 +44,7 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 					)
 				else:
 					# no allocation leads to deletion
+					# TODO deletion glaube falsch: wenn eine allocation von letztem jahr beendet wird und auf 1.1. neue weitergeht wird erst geloescht dann neu erzeugt
 					frappe.delete_doc("Leave Allocation", allocation_name)
 			else:
 				if leave_type_doc.is_carry_forward and first_day_of_year_date.year == today.year:
@@ -291,7 +292,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 		leave_allocation.precision("new_leaves_allocated"),
 	)
 
-	if leave_allocation.custom_carried_forward:
+	if flt(leave_allocation.custom_carried_forward):
 		entries = frappe.get_all(
 			"Leave Ledger Entry",
 			fields=["leaves"],
@@ -305,6 +306,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 		)
 		existing_carried_forward = sum(entry.leaves for entry in entries)
 		if not existing_carried_forward:
+			print(flt(leave_allocation.custom_carried_forward))
 			leaves_to_be_added = leaves_to_be_added - flt(leave_allocation.custom_carried_forward)
 			expiry_days = frappe.db.get_value(
 				"Leave Type", leave_allocation.leave_type, "expire_carry_forwarded_leaves_after_days"
@@ -322,7 +324,7 @@ def custom_update_leave_ledger_entries(leave_allocation: LeaveAllocation, submit
 			)
 			create_leave_ledger_entry(leave_allocation, args, submit)
 		else:
-			leaves_to_be_added = leaves_to_be_added - existing_carried_forward
+			leaves_to_be_added = leaves_to_be_added - flt(existing_carried_forward)
 
 	if leaves_to_be_added:
 		args = dict(
