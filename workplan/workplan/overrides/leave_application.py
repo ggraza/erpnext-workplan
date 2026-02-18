@@ -279,9 +279,6 @@ def get_number_of_leave_day_for_employee_doc(
 		)
 		return result
 	else:
-		print(
-			f"getnumber_for_employee{get_number_of_leave_days_for_workplan(employee_doc.name, leave_type, start, to_date, workplan)}"
-		)
 		return get_number_of_leave_days_for_workplan(employee_doc.name, leave_type, start, to_date, workplan)
 
 
@@ -345,8 +342,7 @@ def update_application_days_value(employee_doc, method):
 			application_doc.custom_minutes_to_work = None
 		elif flt(application.custom_fractional_day_value) > 0:
 			total_hours = work_hours - flt(application.custom_fractional_day_value) * 8
-			hours = math.floor(total_hours)
-			application_doc.custom_minutes_to_work = math.floor((total_hours - hours) * 60)
+			application_doc.custom_minutes_to_work = math.floor((total_hours - math.floor(total_hours)) * 60)
 			application_doc.custom_hours_to_work = math.floor(total_hours)
 
 		application_doc.save()

@@ -56,7 +56,8 @@ class CustomLeaveApplication(LeaveApplication):
 		precision = cint(frappe.db.get_single_value("System Settings", "float_precision")) or 2
 
 		if self.from_date and self.to_date:
-			self.total_leave_days = get_number_of_leave_days(
+			# calculates with workplan but without possible fractional leave day
+			chosen_leave_days = get_number_of_leave_days(
 				self.employee,
 				self.leave_type,
 				self.from_date,
@@ -65,7 +66,7 @@ class CustomLeaveApplication(LeaveApplication):
 				self.half_day_date,
 			)
 
-			if self.total_leave_days <= 0:
+			if chosen_leave_days <= 0:
 				frappe.throw(
 					_(
 						"The day(s) on which you are applying for leave are holidays. You need not apply for leave."
