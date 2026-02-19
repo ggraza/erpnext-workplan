@@ -27,7 +27,6 @@ app_license = "agpl-3.0"
 # include js, css files in header of desk.html
 # app_include_css = "/assets/workplan/css/workplan.css"
 # app_include_js = "/assets/workplan/js/workplan.js"
-# app_include_js = ["/assets/workplan/js/leave_application_override.js"]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/workplan/css/workplan.css"
