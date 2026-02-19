@@ -42,6 +42,9 @@ def update_allocation_for_year(employee_doc, first_day_of_year_date, today):
 						leave_type_doc.name,
 						first_day_of_year_date.year,
 					)
+				else:
+					# no allocation leads to deletion
+					frappe.delete_doc("Leave Allocation", allocation_name)
 			else:
 				if leave_type_doc.is_carry_forward and first_day_of_year_date.year == today.year:
 					carry_forward_days = get_carry_forward_days(
