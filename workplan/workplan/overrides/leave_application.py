@@ -136,6 +136,11 @@ def get_fractional_leave_details(
 	work_hours, last_workday_date = get_last_workday_with_hours(employee_doc, from_date, to_date)
 
 	remaining_leave = leave_balance_for_consumption - leave_days_requested
+
+	# remaining_leave is negative when balance is insufficient (shortfall).
+	# (-work_hours / 8) converts the last workday to the same negative scale.
+	# If the shortfall is larger than the full last workday, working 0h that day still won't cover it —
+	# fractional leave can't help, so bail out.
 	if work_hours == 0 or remaining_leave >= 0 or (-work_hours) / 8 > remaining_leave:
 		return 0, 0, last_workday_date, 0
 

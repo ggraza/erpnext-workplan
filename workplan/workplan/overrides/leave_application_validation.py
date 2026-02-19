@@ -73,6 +73,29 @@ class CustomLeaveApplication(LeaveApplication):
 					)
 				)
 
+			fractional_leave_days = get_number_of_leave_days_leave_application(
+				self.employee,
+				self.leave_type,
+				self.from_date,
+				self.to_date,
+				self.half_day,
+				self.half_day_date,
+			)["total_leave_days"]
+
+			fractional_leave_days = flt(fractional_leave_days, 3)
+			chosen_leave_days = flt(chosen_leave_days, 3)
+			client_total_leave_days = flt(self.total_leave_days, 3)
+
+			print(fractional_leave_days)
+			print(self.total_leave_days)
+
+			# check if a correct value i set client side
+			if (
+				client_total_leave_days != fractional_leave_days
+				and client_total_leave_days != chosen_leave_days
+			):
+				frappe.throw(_("Something went wrong. Please try again."))
+
 			if not is_lwp(self.leave_type):
 				leave_balance = get_leave_balance_on(
 					self.employee,
