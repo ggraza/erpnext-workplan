@@ -5,14 +5,9 @@ from hrms.hr.doctype.leave_application.leave_application import get_approved_lea
 from workplan.workplan.overrides.leave_allocation_new import (
 	calc_allocation_value,
 	get_allocation_doc,
-	get_current_workplan,
-	get_next_workplan,
-	resolve_end,
 )
 from workplan.workplan.overrides.leave_application import (
 	get_number_of_leave_day_for_employee_doc,
-	get_number_of_leave_days,
-	get_number_of_leave_days_for_workplan,
 )
 
 
