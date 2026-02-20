@@ -7,7 +7,6 @@ from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employe
 from frappe.utils import add_days, cint, date_diff, flt, getdate
 from hrms.hr.doctype.leave_application.leave_application import (
 	get_allocation_expiry_for_cf_leaves,
-	get_holidays,
 	get_leave_balance_on,
 	get_leave_entries,
 )
@@ -142,7 +141,7 @@ def get_fractional_leave_details(
 	# If the shortfall is larger than the full last workday, working 0h that day still won't cover it —
 	# fractional leave can't help, so bail out.
 	if work_hours == 0 or remaining_leave >= 0 or (-work_hours) / 8 > remaining_leave:
-		return 0, 0, last_workday_date, 0
+		return None, None, None, None
 
 	print(f"Leave Balance Requested {leave_days_requested}")
 	print(f"Leave Balance available {leave_balance_for_consumption}")
@@ -232,16 +231,16 @@ def get_number_of_leave_days_leave_application(
 	"""Returns number of leave days between 2 dates after considering half day and holidays
 	(Based on the include_holiday setting in Leave Type)"""
 
-	total_fractional_vacation, fractional_work, date, fractional_vacation = get_fractional_leave_details(
+	leave_balance, fractional_work, last_workday_date, fractional_vacation = get_fractional_leave_details(
 		employee, leave_type, from_date, to_date
 	)
 
 	return {
 		"fractional_value": fractional_vacation,
 		"fractional_work": fractional_work,
-		"total_leave_days": total_fractional_vacation,
-		"date": date,
-		"weekday": date.weekday(),
+		"total_leave_days": leave_balance,
+		"date": last_workday_date,
+		"weekday": last_workday_date.weekday() if last_workday_date else None,
 	}
 
 
@@ -376,8 +375,6 @@ def update_application_days_value(employee_doc, method):
 		)
 
 		if leaves_to_be_added:
-			application_doc = frappe.get_doc("Leave Application", application.name)
-
 			if application_doc.status != "Approved":
 				continue
 
