@@ -5,14 +5,9 @@ from hrms.hr.doctype.leave_application.leave_application import get_approved_lea
 from workplan.workplan.overrides.leave_allocation_new import (
 	calc_allocation_value,
 	get_allocation_doc,
-	get_current_workplan,
-	get_next_workplan,
-	resolve_end,
 )
 from workplan.workplan.overrides.leave_application import (
 	get_number_of_leave_day_for_employee_doc,
-	get_number_of_leave_days,
-	get_number_of_leave_days_for_workplan,
 )
 
 
@@ -96,7 +91,7 @@ def validate_used_days_for_year(doc, year, leave_type):
 	if allocation_doc and allocation_doc.carry_forward == 1:
 		new_allocation += allocation_doc.unused_leaves
 
-	if flt(leaves_taken) > flt(new_allocation):
+	if flt(leaves_taken, 3) > flt(new_allocation, 3):
 		frappe.throw(
 			frappe._(
 				"Total allocated leave days for workplans {0} cannot be less than already approved leaves {1} for the period"
