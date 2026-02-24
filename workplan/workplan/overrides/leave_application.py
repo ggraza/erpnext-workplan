@@ -336,10 +336,7 @@ def update_application_days_value(employee_doc, method):
 
 		application_doc = frappe.get_doc("Leave Application", application.name)
 
-		if (
-			work_hours / 8 <= flt(application.custom_fractional_day_value)
-			or date != application_doc.custom_last_workday_date
-		):
+		if work_hours / 8 <= flt(application.custom_fractional_day_value):
 			application_doc.custom_fractional_day_value = 0
 			application_doc.custom_last_workday_date = None
 			application_doc.custom_last_workday_weekday = None
