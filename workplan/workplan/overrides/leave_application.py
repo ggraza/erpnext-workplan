@@ -9,6 +9,7 @@ from hrms.hr.doctype.leave_application.leave_application import (
 	get_allocation_expiry_for_cf_leaves,
 	get_leave_balance_on,
 	get_leave_entries,
+	get_leaves_pending_approval_for_period,
 )
 from hrms.hr.doctype.leave_ledger_entry.leave_ledger_entry import create_leave_ledger_entry
 from hrms.utils.holiday_list import get_holiday_dates_between
@@ -134,7 +135,14 @@ def get_fractional_leave_details(
 
 	work_hours, last_workday_date = get_last_workday_with_hours(employee_doc, from_date, to_date)
 
-	remaining_leave = leave_balance_for_consumption - leave_days_requested
+	date1 = getdate(f"{from_date.year}-01-01")
+	date2 = getdate(f"{to_date.year}-12-31")
+
+	pending_approval = get_leaves_pending_approval_for_period(employee, leave_type, date1, date2)
+
+	leave_balance_for_application = leave_balance_for_consumption - pending_approval
+
+	remaining_leave = leave_balance_for_application - leave_days_requested
 
 	# remaining_leave is negative when balance is insufficient (shortfall).
 	# (-work_hours / 8) converts the last workday to the same negative scale.
@@ -144,10 +152,10 @@ def get_fractional_leave_details(
 		return None, None, None, None
 
 	print(f"Leave Balance Requested {leave_days_requested}")
-	print(f"Leave Balance available {leave_balance_for_consumption}")
-	fractional_vacation = work_hours / 8 + leave_balance_for_consumption - leave_days_requested
+	print(f"Leave Balance available {leave_balance_for_application}")
+	fractional_vacation = work_hours / 8 + leave_balance_for_application - leave_days_requested
 	fractional_work = work_hours / 8 - fractional_vacation
-	return leave_balance_for_consumption, fractional_work, last_workday_date, fractional_vacation
+	return leave_balance_for_application, fractional_work, last_workday_date, fractional_vacation
 
 
 def get_last_workday_with_hours(employee_doc, from_date, to_date):
