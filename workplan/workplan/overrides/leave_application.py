@@ -426,7 +426,7 @@ def get_leaves_for_period(
 ) -> float:
 	leave_entries = get_leave_entries(employee, leave_type, from_date, to_date)
 	leave_days = 0
-	processed_leave_applications = set()
+	processed_leave_entry_from_dates = set()
 	for leave_entry in leave_entries:
 		inclusive_period = leave_entry.from_date >= getdate(from_date) and leave_entry.to_date <= getdate(
 			to_date
@@ -444,9 +444,9 @@ def get_leaves_for_period(
 			leave_days += leave_entry.leaves
 
 		elif leave_entry.transaction_type == "Leave Application":
-			if leave_entry.transaction_name in processed_leave_applications:
+			if leave_entry.from_date in processed_leave_entry_from_dates:
 				continue
-			processed_leave_applications.add(leave_entry.transaction_name)
+			processed_leave_entry_from_dates.add(leave_entry.from_date)
 			if leave_entry.from_date < getdate(from_date):
 				leave_entry.from_date = from_date
 			if leave_entry.to_date > getdate(to_date):
