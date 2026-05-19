@@ -82,8 +82,6 @@ class CustomLeaveApplication(LeaveApplication):
 				self.half_day_date,
 			)["total_leave_days"]
 
-			print(self.total_leave_days)
-			print(chosen_leave_days)
 			chosen_leave_days = flt(chosen_leave_days, 3)
 			client_total_leave_days = flt(self.total_leave_days, 3)
 			# client must have set total_leave_days to one of the valid values
@@ -91,8 +89,6 @@ class CustomLeaveApplication(LeaveApplication):
 			if fractional_leave_days is not None:
 				valid_totals.add(flt(fractional_leave_days, 3))
 
-			print(valid_totals)
-			print(client_total_leave_days)
 			if client_total_leave_days not in valid_totals:
 				frappe.throw(_("Something went wrong. Please try again."))
 
